@@ -138,5 +138,3 @@ If a requests makes it into the buffer it is retried until success.
 Retries are serialized to a single backend.
 Meaning that buffered requests are attempted one at a time.
 If buffered requests succeed then there is no delay between subsequent attempts.
-
-

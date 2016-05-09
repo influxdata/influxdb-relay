@@ -68,10 +68,11 @@ func NewHTTP(cfg HTTPConfig) (Relay, error) {
 			}
 			rb = newRetryBuffer(b.BufferSize, DefaultInitialInterval, DefaultMultiplier, max)
 		}
+
 		h.backends = append(h.backends, &httpBackend{
-			name:        b.Name,
-			location:    b.Location,
-			retryBuffer: rb,
+			name:          b.Name,
+			location:      b.Location,
+			retryBuffer:   rb,
 			client: &http.Client{
 				Timeout: timeout,
 			},
@@ -190,7 +191,8 @@ func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		b := b
 		go func() {
 			defer wg.Done()
-			resp, err := b.post(outBytes, r.URL.RawQuery)
+			username, password, _ := r.BasicAuth()
+			resp, err := b.post(outBytes, r.URL.RawQuery, username, password)
 			if err != nil {
 				log.Printf("Problem posting to relay %q backend %q: %v", h.Name(), b.name, err)
 				responses <- nil
@@ -290,7 +292,7 @@ type httpBackend struct {
 	buffering   int32
 }
 
-func (b *httpBackend) post(buf []byte, query string) (response *http.Response, err error) {
+func (b *httpBackend) post(buf []byte, query, username, password string) (response *http.Response, err error) {
 	req, err := http.NewRequest("POST", b.location, bytes.NewReader(buf))
 	if err != nil {
 		return
@@ -299,6 +301,10 @@ func (b *httpBackend) post(buf []byte, query string) (response *http.Response, e
 	req.URL.RawQuery = query
 	req.Header.Set("Content-Type", "text/plain")
 	req.Header.Set("Content-Length", fmt.Sprint(len(buf)))
+
+	if username != "" && password != "" {
+		req.SetBasicAuth(username, password)
+	}
 
 	// Check if we are in buffering mode
 	if atomic.LoadInt32(&b.buffering) == 0 {

@@ -39,6 +39,17 @@ type HTTPOutputConfig struct {
 	// Maximum delay between retry attempts.
 	// The format used is the same seen in time.ParseDuration (Default 10s)
 	MaxDelayInterval string `toml:"max-delay-interval"`
+
+	// HTTP-Auth mode defines how we should deal with authentication:
+	// pass: pass client's Authorization header to backends
+	// force: send Authorization header using http-auth-user and http-auth-pass values
+	// Default: pass
+	HTTPAuthMode string `toml:"http-auth-mode"`
+
+	// Username and password used for HTTP authentication.
+	// Both values must be defined for this to work.
+	HTTPUsername string `toml:"http-auth-user"`
+	HTTPPassword string `toml:"http-auth-pass"`
 }
 
 type UDPConfig struct {
