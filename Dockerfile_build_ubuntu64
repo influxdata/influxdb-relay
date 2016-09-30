@@ -1,4 +1,4 @@
-FROM ubuntu:trusty
+FROM ubuntu:xenial
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     python-software-properties \
@@ -12,7 +12,8 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     rpm \
     zip \
     python \
-    python-boto
+    python-boto \
+    gcc
 
 RUN gem install fpm
 
