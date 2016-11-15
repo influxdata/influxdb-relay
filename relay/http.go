@@ -21,9 +21,10 @@ import (
 
 // HTTP is a relay for HTTP influxdb writes
 type HTTP struct {
-	addr   string
-	name   string
-	schema string
+	addr     string
+	name     string
+	schema   string
+	response int
 
 	cert string
 	rp   string
@@ -35,6 +36,7 @@ type HTTP struct {
 }
 
 const (
+	DefaultHttpPingResponse = http.StatusNoContent
 	DefaultHTTPTimeout      = 10 * time.Second
 	DefaultMaxDelayInterval = 10 * time.Second
 	DefaultBatchSizeKB      = 512
@@ -48,6 +50,7 @@ func NewHTTP(cfg HTTPConfig) (Relay, error) {
 
 	h.addr = cfg.Addr
 	h.name = cfg.Name
+	h.response = cfg.DefaultPingResponse
 
 	h.cert = cfg.SSLCombinedPem
 	h.rp = cfg.DefaultRetentionPolicy
@@ -113,9 +116,14 @@ func (h *HTTP) Stop() error {
 func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 
+	pingStatusResponse := DefaultHttpPingResponse
+	if (h.response != 0) {
+		pingStatusResponse = h.response
+	}
+
 	if r.URL.Path == "/ping" && (r.Method == "GET" || r.Method == "HEAD") {
 			w.Header().Add("X-InfluxDB-Version", "relay")
-			w.WriteHeader(http.StatusNoContent)
+			w.WriteHeader(pingStatusResponse)
 			return
 	}
 

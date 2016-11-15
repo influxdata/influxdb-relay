@@ -24,6 +24,9 @@ type HTTPConfig struct {
 	// Default retention policy to set for forwarded requests
 	DefaultRetentionPolicy string `toml:"default-retention-policy"`
 
+	// Default ping response
+	DefaultPingResponse int `toml:"default-ping-response"`
+
 	// Outputs is a list of backed servers where writes will be forwarded
 	Outputs []HTTPOutputConfig `toml:"output"`
 }
