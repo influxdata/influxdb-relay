@@ -122,9 +122,9 @@ func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.URL.Path == "/ping" && (r.Method == "GET" || r.Method == "HEAD") {
-			w.Header().Add("X-InfluxDB-Version", "relay")
-			w.WriteHeader(pingStatusResponse)
-			return
+		w.Header().Add("X-InfluxDB-Version", "relay")
+		w.WriteHeader(pingStatusResponse)
+		return
 	}
 
 	if r.URL.Path != "/write" {
