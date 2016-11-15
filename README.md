@@ -28,6 +28,9 @@ name = "example-http"
 # TCP address to bind to, for HTTP server.
 bind-addr = "127.0.0.1:9096"
 
+# Ping response code, default is 204
+default-ping-response = 200
+
 # Enable HTTPS requests.
 ssl-combined-pem = "/etc/ssl/influxdb-relay.pem"
 
