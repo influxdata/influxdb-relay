@@ -21,20 +21,24 @@ import (
 
 // HTTP is a relay for HTTP influxdb writes
 type HTTP struct {
-	addr   string
-	name   string
-	schema string
+	addr                string
+	name                string
+	schema              string
 
-	cert string
-	rp   string
+	pingResponseCode    int
+	pingResponseHeaders map[string]string
 
-	closing int64
-	l       net.Listener
+	cert                string
+	rp                  string
 
-	backends []*httpBackend
+	closing             int64
+	l                   net.Listener
+
+	backends            []*httpBackend
 }
 
 const (
+	DefaultHttpPingResponse = http.StatusNoContent
 	DefaultHTTPTimeout      = 10 * time.Second
 	DefaultMaxDelayInterval = 10 * time.Second
 	DefaultBatchSizeKB      = 512
@@ -48,6 +52,16 @@ func NewHTTP(cfg HTTPConfig) (Relay, error) {
 
 	h.addr = cfg.Addr
 	h.name = cfg.Name
+
+	h.pingResponseCode = DefaultHttpPingResponse
+	if (cfg.DefaultPingResponse != 0) {
+		h.pingResponseCode = cfg.DefaultPingResponse
+	}
+
+	h.pingResponseHeaders["X-InfluxDB-Version"] = "relay"
+	if (h.pingResponseCode != http.StatusNoContent) {
+		h.pingResponseHeaders["Content-Length"] = "0"
+	}
 
 	h.cert = cfg.SSLCombinedPem
 	h.rp = cfg.DefaultRetentionPolicy
@@ -114,9 +128,11 @@ func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 
 	if r.URL.Path == "/ping" && (r.Method == "GET" || r.Method == "HEAD") {
-			w.Header().Add("X-InfluxDB-Version", "relay")
-			w.WriteHeader(http.StatusNoContent)
-			return
+		for key, value := range h.pingResponseHeaders {
+			w.Header().Add(key, value)
+		}
+		w.WriteHeader(h.pingResponseCode)
+		return
 	}
 
 	if r.URL.Path != "/write" {
