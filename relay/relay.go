@@ -2,8 +2,9 @@ package relay
 
 import (
 	"fmt"
-	"log"
 	"sync"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 type Service struct {
@@ -49,7 +50,7 @@ func (s *Service) Run() {
 			defer wg.Done()
 
 			if err := relay.Run(); err != nil {
-				log.Printf("Error running relay %q: %v", relay.Name(), err)
+				log.Error("Error running relay %q: %v", relay.Name(), err)
 			}
 		}()
 	}

@@ -7,6 +7,12 @@ output = [
     { name="local1", location = "http://127.0.0.1:8086/write" },
     { name="local2", location = "http://127.0.0.1:7086/write" },
 ]
+//add by YGT, if enable is true: write data to database, else data cache in memory
+permanence = { enable = true, path = "/var/lib/relay-db/rocksdb" }
+
+[log]
+path = "/var/log/influxdb-relay/"
+level = "Debug"
 
 [[udp]]
 name = "example-udp"

@@ -9,6 +9,8 @@ import (
 type Config struct {
 	HTTPRelays []HTTPConfig `toml:"http"`
 	UDPRelays  []UDPConfig  `toml:"udp"`
+
+	Log relayLog `toml:"log"`
 }
 
 type HTTPConfig struct {
@@ -26,6 +28,9 @@ type HTTPConfig struct {
 
 	// Outputs is a list of backed servers where writes will be forwarded
 	Outputs []HTTPOutputConfig `toml:"output"`
+
+	// Add by Ygt, place data in database if true
+	Permanence PermanenceOption `toml:"permanence"`
 }
 
 type HTTPOutputConfig struct {
@@ -80,6 +85,18 @@ type UDPOutputConfig struct {
 
 	// MTU sets the maximum output payload size, default is 1024
 	MTU int `toml:"mtu"`
+}
+
+type PermanenceOption struct {
+	Enable bool `toml:"enable"`
+
+	// database path for placeing data
+	Path string `toml:"path"`
+}
+
+type relayLog struct {
+	Path  string `toml:"path"`
+	Level string `toml:"level"`
 }
 
 // LoadConfigFile parses the specified file into a Config object

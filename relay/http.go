@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net"
 	"net/http"
 	"strconv"
@@ -16,6 +15,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/influxdata/influxdb/models"
 )
 
@@ -58,7 +58,7 @@ func NewHTTP(cfg HTTPConfig) (Relay, error) {
 	}
 
 	for i := range cfg.Outputs {
-		backend, err := newHTTPBackend(&cfg.Outputs[i])
+		backend, err := newHTTPBackend(&cfg.Outputs[i], &cfg.Permanence)
 		if err != nil {
 			return nil, err
 		}
@@ -96,7 +96,10 @@ func (h *HTTP) Run() error {
 
 	h.l = l
 
-	log.Printf("Starting %s relay %q on %v", strings.ToUpper(h.schema), h.Name(), h.addr)
+	str:=fmt.Sprintf("Starting %s relay %q on %v", strings.ToUpper(h.schema), h.Name(), h.addr)
+	fmt.Println(str)
+	//log.Info("Starting %s relay %q on %v", strings.ToUpper(h.schema), h.Name(), h.addr)
+	log.Info(str)
 
 	err = http.Serve(l, h)
 	if atomic.LoadInt64(&h.closing) != 0 {
@@ -211,10 +214,10 @@ func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			defer wg.Done()
 			resp, err := b.post(outBytes, query, authHeader)
 			if err != nil {
-				log.Printf("Problem posting to relay %q backend %q: %v", h.Name(), b.name, err)
+				log.Error("Problem posting to relay %q backend %q: %v", h.Name(), b.name, err)
 			} else {
 				if resp.StatusCode/100 == 5 {
-					log.Printf("5xx response for relay %q backend %q: %v", h.Name(), b.name, resp.StatusCode)
+					log.Error("5xx response for relay %q backend %q: %v", h.Name(), b.name, resp.StatusCode)
 				}
 				responses <- resp
 			}
@@ -352,7 +355,7 @@ type httpBackend struct {
 	name string
 }
 
-func newHTTPBackend(cfg *HTTPOutputConfig) (*httpBackend, error) {
+func newHTTPBackend(cfg *HTTPOutputConfig, db *PermanenceOption) (*httpBackend, error) {
 	if cfg.Name == "" {
 		cfg.Name = cfg.Location
 	}
@@ -370,22 +373,26 @@ func newHTTPBackend(cfg *HTTPOutputConfig) (*httpBackend, error) {
 
 	// If configured, create a retryBuffer per backend.
 	// This way we serialize retries against each backend.
-	if cfg.BufferSizeMB > 0 {
-		max := DefaultMaxDelayInterval
-		if cfg.MaxDelayInterval != "" {
-			m, err := time.ParseDuration(cfg.MaxDelayInterval)
-			if err != nil {
-				return nil, fmt.Errorf("error parsing max retry time %v", err)
+	if db == nil || (db != nil && !db.Enable) {
+		if cfg.BufferSizeMB > 0 {
+			max := DefaultMaxDelayInterval
+			if cfg.MaxDelayInterval != "" {
+				m, err := time.ParseDuration(cfg.MaxDelayInterval)
+				if err != nil {
+					return nil, fmt.Errorf("error parsing max retry time %v", err)
+				}
+				max = m
 			}
-			max = m
-		}
 
-		batch := DefaultBatchSizeKB * KB
-		if cfg.MaxBatchKB > 0 {
-			batch = cfg.MaxBatchKB * KB
-		}
+			batch := DefaultBatchSizeKB * KB
+			if cfg.MaxBatchKB > 0 {
+				batch = cfg.MaxBatchKB * KB
+			}
 
-		p = newRetryBuffer(cfg.BufferSizeMB*MB, batch, max, p)
+			p = newRetryBuffer(cfg.BufferSizeMB*MB, batch, max, p)
+		}
+	} else {
+		p = newDiskRetryBuffer(p, db.Path, cfg.Location)
 	}
 
 	return &httpBackend{
