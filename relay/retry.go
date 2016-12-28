@@ -2,6 +2,7 @@ package relay
 
 import (
 	"bytes"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -45,6 +46,15 @@ func newRetryBuffer(size, batch int, max time.Duration, p poster) *retryBuffer {
 	}
 	go r.run()
 	return r
+}
+
+func (r *retryBuffer) getStats() map[string]string {
+	stats := make(map[string]string)
+	stats["buffering"] = strconv.FormatInt(int64(r.buffering), 10)
+	for k, v := range r.list.getStats() {
+		stats[k] = v
+	}
+	return stats
 }
 
 func (r *retryBuffer) post(buf []byte, query string, auth string) (*responseData, error) {
@@ -136,6 +146,13 @@ func newBufferList(maxSize, maxBatch int) *bufferList {
 		maxSize:  maxSize,
 		maxBatch: maxBatch,
 	}
+}
+
+func (l *bufferList) getStats() map[string]string {
+	stats := make(map[string]string)
+	stats["size"] = strconv.FormatInt(int64(l.size), 10)
+	stats["maxSize"] = strconv.FormatInt(int64(l.maxSize), 10)
+	return stats
 }
 
 // pop will remove and return the first element of the list, blocking if necessary

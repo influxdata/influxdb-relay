@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -114,13 +115,32 @@ func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 
 	if r.URL.Path == "/ping" && (r.Method == "GET" || r.Method == "HEAD") {
-			w.Header().Add("X-InfluxDB-Version", "relay")
-			w.WriteHeader(http.StatusNoContent)
+		w.Header().Add("X-InfluxDB-Version", "relay")
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	if r.URL.Path == "/status" && (r.Method == "GET" || r.Method == "HEAD") {
+		st := make(map[string]map[string]string)
+
+		for _, b := range h.backends {
+			st[b.name] = b.poster.getStats()
+		}
+
+		j, err := json.Marshal(st)
+
+		if err != nil {
+			log.Printf("error: %s", err)
+			jsonResponse(w, http.StatusInternalServerError, "json marshalling failed")
 			return
+		}
+
+		jsonResponse(w, http.StatusOK, fmt.Sprintf("\"status\": %s", string(j)))
+		return
 	}
 
 	if r.URL.Path != "/write" {
-		jsonError(w, http.StatusNotFound, "invalid write endpoint")
+		jsonResponse(w, http.StatusNotFound, "invalid write endpoint")
 		return
 	}
 
@@ -129,7 +149,7 @@ func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusNoContent)
 		} else {
-			jsonError(w, http.StatusMethodNotAllowed, "invalid write method")
+			jsonResponse(w, http.StatusMethodNotAllowed, "invalid write method")
 		}
 		return
 	}
@@ -138,7 +158,7 @@ func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// fail early if we're missing the database
 	if queryParams.Get("db") == "" {
-		jsonError(w, http.StatusBadRequest, "missing parameter: db")
+		jsonResponse(w, http.StatusBadRequest, "missing parameter: db")
 		return
 	}
 
@@ -151,7 +171,7 @@ func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Content-Encoding") == "gzip" {
 		b, err := gzip.NewReader(r.Body)
 		if err != nil {
-			jsonError(w, http.StatusBadRequest, "unable to decode gzip body")
+			jsonResponse(w, http.StatusBadRequest, "unable to decode gzip body")
 		}
 		defer b.Close()
 		body = b
@@ -161,7 +181,7 @@ func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_, err := bodyBuf.ReadFrom(body)
 	if err != nil {
 		putBuf(bodyBuf)
-		jsonError(w, http.StatusInternalServerError, "problem reading request body")
+		jsonResponse(w, http.StatusInternalServerError, "problem reading request body")
 		return
 	}
 
@@ -169,7 +189,7 @@ func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	points, err := models.ParsePointsWithPrecision(bodyBuf.Bytes(), start, precision)
 	if err != nil {
 		putBuf(bodyBuf)
-		jsonError(w, http.StatusBadRequest, "unable to parse points")
+		jsonResponse(w, http.StatusBadRequest, "unable to parse points")
 		return
 	}
 
@@ -188,7 +208,7 @@ func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		putBuf(outBuf)
-		jsonError(w, http.StatusInternalServerError, "problem writing points")
+		jsonResponse(w, http.StatusInternalServerError, "problem writing points")
 		return
 	}
 
@@ -249,7 +269,7 @@ func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// no successful writes
 	if errResponse == nil {
 		// failed to make any valid request...
-		jsonError(w, http.StatusServiceUnavailable, "unable to write points")
+		jsonResponse(w, http.StatusServiceUnavailable, "unable to write points")
 		return
 	}
 
@@ -277,9 +297,14 @@ func (rd *responseData) Write(w http.ResponseWriter) {
 	w.Write(rd.Body)
 }
 
-func jsonError(w http.ResponseWriter, code int, message string) {
+func jsonResponse(w http.ResponseWriter, code int, message string) {
+	var data string
+	if code/100 != 2 {
+		data = fmt.Sprintf("{\"error\":%q}\n", message)
+	} else {
+		data = fmt.Sprintf("{%s}\n", message)
+	}
 	w.Header().Set("Content-Type", "application/json")
-	data := fmt.Sprintf("{\"error\":%q}\n", message)
 	w.Header().Set("Content-Length", fmt.Sprint(len(data)))
 	w.WriteHeader(code)
 	w.Write([]byte(data))
@@ -287,6 +312,7 @@ func jsonError(w http.ResponseWriter, code int, message string) {
 
 type poster interface {
 	post([]byte, string, string) (*responseData, error)
+	getStats() map[string]string
 }
 
 type simplePoster struct {
@@ -310,6 +336,12 @@ func newSimplePoster(location string, timeout time.Duration, skipTLSVerification
 		},
 		location: location,
 	}
+}
+
+func (s *simplePoster) getStats() map[string]string {
+	v := make(map[string]string)
+	v["location"] = s.location
+	return v
 }
 
 func (b *simplePoster) post(buf []byte, query string, auth string) (*responseData, error) {
