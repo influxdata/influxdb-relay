@@ -8,8 +8,10 @@ After=network.target
 [Service]
 User=influxdb-relay
 Group=influxdb-relay
+Environment=STDOUT=/var/log/influxdb-relay/influxdb-relay.log
+Environment=STDERR=/var/log/influxdb-relay/influxdb-relay.log
 LimitNOFILE=65536
-ExecStart=/usr/bin/influxdb-relay -config /etc/influxdb-relay/influxdb-relay.conf
+ExecStart=/usr/bin/influxdb-relay -config /etc/influxdb-relay/influxdb-relay.conf >>$STDOUT 2>>$STDERR
 KillMode=control-group
 Restart=on-failure
 
