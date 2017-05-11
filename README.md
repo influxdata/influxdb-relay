@@ -130,6 +130,7 @@ If buffered requests succeed then there is no delay between subsequent attempts.
 If the relay stays alive the entire duration of a downed backend server without filling that server's allocated buffer, and the relay can stay online until the entire buffer is flushed, it would mean that no operator intervention would be required to "recover" the data. The data will simply be batched together and written out to the recovered server in the order it was received.
 
 *NOTE*: The limits for buffering are not hard limits on the memory usage of the application, and there will be additional overhead that would be much more challenging to account for. The limits listed are just for the amount of point line protocol (including any added timestamps, if applicable). Factors such as small incoming batch sizes and a smaller max batch size will increase the overhead in the buffer. There is also the general application memory overhead to account for. This means that a machine with 2GB of memory should not have buffers that sum up to _almost_ 2GB.
+The buffering feature will only be activated when at least two InfluxDB backends are configured. In addition always at least one backend has to be active for buffering to work.
 
 ## Recovery
 
