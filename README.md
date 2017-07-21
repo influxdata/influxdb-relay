@@ -112,7 +112,7 @@ With this setup a failure of one Relay or one InfluxDB can be sustained while st
 
 The relay can be configured to buffer failed requests for HTTP backends.
 The intent of this logic is reduce the number of failures during short outages or periodic network issues.
-> This retry logic is **NOT** sufficient for for long periods of downtime as all data is buffered in RAM
+> This retry logic is **NOT** sufficient for long periods of downtime as all data is buffered in RAM
 
 Buffering has the following configuration options (configured per HTTP backend):
 
