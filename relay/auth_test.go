@@ -36,6 +36,16 @@ func TestGetAuthorizationString(t *testing.T) {
 			exp:  "client-header",
 		},
 		{
+			cfg:  newMockHTTPOutputConfig("admin", ""),
+			auth: "client-header",
+			exp:  "client-header",
+		},
+		{
+			cfg:  newMockHTTPOutputConfig("", "password"),
+			auth: "client-header",
+			exp:  "client-header",
+		},
+		{
 			cfg:  newMockHTTPOutputConfig("admin", "password"),
 			auth: "client-header-present-but-not-preferred",
 			exp:  "Basic YWRtaW46cGFzc3dvcmQ=", // admin:password
