@@ -1,0 +1,17 @@
+type: application
+owners:
+  - sre-observability@scout24.com
+product: as24-shared-services-dashboard
+id: as24-shared-services-influxdb-relay
+vertical: as24
+availability: false
+confidentiality: company-internal
+integrity: true
+name: Shared Services - Influxdb Relay
+description: |
+  Fork of the influxdb-relay.
+lifecycle: maintenance
+tags:
+  - cash-stack
+  - metrics
+  - kpi
