@@ -209,7 +209,7 @@ func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		b := b
 		go func() {
 			defer wg.Done()
-			resp, err := b.post(outBytes, query, authHeader)
+			resp, err := b.post(outBytes, query, b.auth.GetAuthorizationString(authHeader))
 			if err != nil {
 				log.Printf("Problem posting to relay %q backend %q: %v", h.Name(), b.name, err)
 			} else {
@@ -350,6 +350,7 @@ func (b *simplePoster) post(buf []byte, query string, auth string) (*responseDat
 type httpBackend struct {
 	poster
 	name string
+	auth HTTPAuth
 }
 
 func newHTTPBackend(cfg *HTTPOutputConfig) (*httpBackend, error) {
@@ -388,9 +389,12 @@ func newHTTPBackend(cfg *HTTPOutputConfig) (*httpBackend, error) {
 		p = newRetryBuffer(cfg.BufferSizeMB*MB, batch, max, p)
 	}
 
+	auth := NewHTTPAuth(cfg)
+
 	return &httpBackend{
 		poster: p,
 		name:   cfg.Name,
+		auth:   auth,
 	}, nil
 }
 
