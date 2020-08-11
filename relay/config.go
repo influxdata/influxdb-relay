@@ -52,6 +52,12 @@ type HTTPOutputConfig struct {
 	// Skip TLS verification in order to use self signed certificate.
 	// WARNING: It's insecure. Use it only for developing and don't use in production.
 	SkipTLSVerification bool `toml:"skip-tls-verification"`
+
+	// If specified, overrides any client Authorization headers sent
+	HTTPUser string `toml:"http-user"`
+
+	// If specified, overrides any client AUthorization headers sent
+	HTTPPass string `toml:"http-pass"`
 }
 
 type UDPConfig struct {

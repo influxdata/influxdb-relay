@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/tls"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -123,7 +124,6 @@ func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, http.StatusNotFound, "invalid write endpoint")
 		return
 	}
-
 	if r.Method != "POST" {
 		w.Header().Set("Allow", "POST")
 		if r.Method == "OPTIONS" {
@@ -209,7 +209,7 @@ func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		b := b
 		go func() {
 			defer wg.Done()
-			resp, err := b.post(outBytes, query, authHeader)
+			resp, err := b.post(outBytes, query, b.getAuthHeader(authHeader))
 			if err != nil {
 				log.Printf("Problem posting to relay %q backend %q: %v", h.Name(), b.name, err)
 			} else {
@@ -321,6 +321,7 @@ func (b *simplePoster) post(buf []byte, query string, auth string) (*responseDat
 	req.URL.RawQuery = query
 	req.Header.Set("Content-Type", "text/plain")
 	req.Header.Set("Content-Length", strconv.Itoa(len(buf)))
+
 	if auth != "" {
 		req.Header.Set("Authorization", auth)
 	}
@@ -350,6 +351,14 @@ func (b *simplePoster) post(buf []byte, query string, auth string) (*responseDat
 type httpBackend struct {
 	poster
 	name string
+	auth string
+}
+
+func (h *httpBackend) getAuthHeader(passthru string) string {
+	if h.auth != "" {
+		return h.auth
+	}
+	return passthru
 }
 
 func newHTTPBackend(cfg *HTTPOutputConfig) (*httpBackend, error) {
@@ -388,9 +397,15 @@ func newHTTPBackend(cfg *HTTPOutputConfig) (*httpBackend, error) {
 		p = newRetryBuffer(cfg.BufferSizeMB*MB, batch, max, p)
 	}
 
+	auth := ""
+	if cfg.HTTPUser != "" && cfg.HTTPPass != "" {
+		auth = fmt.Sprintf("Basic %s", base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", cfg.HTTPUser, cfg.HTTPPass))))
+	}
+
 	return &httpBackend{
 		poster: p,
 		name:   cfg.Name,
+		auth:   auth,
 	}, nil
 }
 
