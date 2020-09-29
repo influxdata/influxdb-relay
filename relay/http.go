@@ -329,13 +329,10 @@ func (b *simplePoster) post(buf []byte, query string, auth string) (*responseDat
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
-	}
-
-	if err = resp.Body.Close(); err != nil {
 		return nil, err
 	}
 
