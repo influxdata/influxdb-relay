@@ -195,6 +195,6 @@ func (l *bufferList) add(buf []byte, query string, auth string) (*batch, error) 
 		b.bufs = append(b.bufs, buf)
 	}
 
-	l.cond.L.Unlock()
+	defer l.cond.L.Unlock()
 	return *cur, nil
 }
